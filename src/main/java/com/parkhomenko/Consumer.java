@@ -1,5 +1,6 @@
 package com.parkhomenko;
 
+import java.util.Objects;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -13,23 +14,51 @@ import java.util.concurrent.TimeUnit;
 public class Consumer implements Runnable {
 
     private BlockingQueue<String> queue;
-    private ExecutorService geocodingTaskExecutor = Executors.newFixedThreadPool(8); //I have 4 cores in my CPU so 2 threads per core is normal approach
+    private ExecutorService executor = Executors.newFixedThreadPool(16); //I have 4 cores in my CPU so 2 threads per core is normal approach
+    private Signal stopSignal;
 
-    public Consumer(BlockingQueue<String> queue) {
+    public Consumer(BlockingQueue<String> queue, Signal stopSignal) {
         this.queue = queue;
+        this.stopSignal = stopSignal;
     }
 
     public void run() {
-        String city;
-        try {
-            while(!Producer.EXIT_PILL.equals(city = queue.poll(10, TimeUnit.SECONDS))) { //10 seconds for reading data from disk I think enough
-                Thread.sleep(200); //due to fact of Google Geocoding API Usage Limits I added delay here without it some part of parallel requests to Google Geocoding API service will be discarded
-                geocodingTaskExecutor.execute(new GoogleCityGeocodingTask(city));
-            }
-        } catch (InterruptedException e) {
-            e.printStackTrace();
-        }
 
-        geocodingTaskExecutor.shutdown();
+        boolean interrupted = false;
+
+        try {
+
+            while(!stopSignal.isWorkCompleted() || !queue.isEmpty()) {
+
+                try {
+
+                    String city = queue.poll(300, TimeUnit.MILLISECONDS);
+
+                    if(Objects.nonNull(city)) {
+                        executor.execute(new GoogleCityGeocodingTask(city));
+                    }
+
+                } catch (InterruptedException e) {
+                    interrupted = true;
+                }
+
+            }
+        } finally {
+            executor.shutdown();
+
+            try {
+                executor.awaitTermination(Long.MAX_VALUE, TimeUnit.SECONDS);
+
+                System.out.print("SUCCESS = " + GoogleCityGeocodingTask.getSuccessCount());
+                System.out.println(" / TOTAL = " + GoogleCityGeocodingTask.getTotalCount());
+
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+
+            if (interrupted) {
+                Thread.currentThread().interrupt();
+            }
+        }
     }
 }

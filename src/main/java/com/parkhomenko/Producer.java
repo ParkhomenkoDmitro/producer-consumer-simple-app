@@ -11,38 +11,39 @@ import java.util.concurrent.BlockingQueue;
  */
 
 public class Producer implements Runnable {
-    public static final String EXIT_PILL = "EXIT_PILL_CODE";
+
     private static final String FILE_PATH = "city.txt";
     private BlockingQueue<String> queue;
+    private Signal stopSignal;
 
-    public Producer(BlockingQueue<String> queue) {
+    public Producer(BlockingQueue<String> queue, Signal stopSignal) {
         this.queue = queue;
+        this.stopSignal = stopSignal;
     }
 
     @Override
     public void run() {
 
+        try {
+            readAll();
+        } catch (IOException | InterruptedException e) {
+            Thread.currentThread().interrupt();
+        } finally {
+            stopSignal.setWorkCompleted(true);
+        }
+    }
+
+    private void readAll() throws IOException, InterruptedException {
+
         ClassLoader classLoader = this.getClass().getClassLoader();
         String fileName = classLoader.getResource(FILE_PATH).getFile();
 
-        try {
-            try (BufferedReader br =
-                         new BufferedReader(new FileReader(fileName))) {
-                String city;
-                while((city = br.readLine()) != null) {
-                    queue.put(city);
-                }
-            } catch (InterruptedException e) {
-                e.printStackTrace();
-            }
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
+        try (BufferedReader br = new BufferedReader(new FileReader(fileName))) {
 
-        try {
-            queue.put(EXIT_PILL);
-        } catch (InterruptedException e) {
-            e.printStackTrace();
+            String city;
+            while((city = br.readLine()) != null) {
+                queue.put(city);
+            }
         }
     }
 }

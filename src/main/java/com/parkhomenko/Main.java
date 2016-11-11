@@ -13,13 +13,13 @@ import java.util.concurrent.Executors;
 public class Main {
 
     public static void main(String[] args) throws InterruptedException {
-        BlockingQueue<String> queue = new ArrayBlockingQueue<>(50); //50 is a size for common buffer between consumer and producer, not very small so enough
-        Producer producer = new Producer(queue);
-        Consumer consumer = new Consumer(queue);
+        BlockingQueue<String> queue = new ArrayBlockingQueue<>(10); //10 for testing
+        Signal exitSignal = new Signal();
+        Producer producer = new Producer(queue, exitSignal);
+        Consumer consumer = new Consumer(queue, exitSignal);
 
         ExecutorService producerExecutor = Executors.newSingleThreadExecutor();
         producerExecutor.execute(producer);
-
 
         ExecutorService consumerExecutor = Executors.newSingleThreadExecutor();
         consumerExecutor.execute(consumer);
