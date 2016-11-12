@@ -1,4 +1,4 @@
-package com.parkhomenko;
+package com.parkhomenko.parallel;
 
 import java.io.BufferedReader;
 import java.io.FileReader;
@@ -14,11 +14,9 @@ public class Producer implements Runnable {
 
     private static final String FILE_PATH = "city.txt";
     private BlockingQueue<String> queue;
-    private Signal stopSignal;
 
-    public Producer(BlockingQueue<String> queue, Signal stopSignal) {
+    public Producer(BlockingQueue<String> queue) {
         this.queue = queue;
-        this.stopSignal = stopSignal;
     }
 
     @Override
@@ -28,8 +26,6 @@ public class Producer implements Runnable {
             readAll();
         } catch (IOException | InterruptedException e) {
             Thread.currentThread().interrupt();
-        } finally {
-            stopSignal.setWorkCompleted(true);
         }
     }
 
